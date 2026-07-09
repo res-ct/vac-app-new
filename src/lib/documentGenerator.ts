@@ -43,6 +43,47 @@ export const generateVacationDocument = async (user: any, startDate: string, end
         }
         return nameStr;
     };
+
+    const getGenitivePosition = (posStr: string) => {
+        if (!posStr) return '';
+        const words = posStr.trim().split(/\s+/);
+        let result = [];
+        let foundNoun = false;
+        
+        for (let i = 0; i < words.length; i++) {
+            let word = words[i];
+            let lWord = word.toLowerCase();
+            
+            if (lWord === 'по' || lWord === 'в' || lWord === 'на' || lWord === 'и') {
+                foundNoun = true;
+                result.push(word);
+                continue;
+            }
+            
+            if (!foundNoun) {
+                let isAdjective = lWord.endsWith('ий') || lWord.endsWith('ый') || lWord.endsWith('ая') || lWord.endsWith('яя');
+                
+                if (lWord.endsWith('ий')) word = word.slice(0, -2) + 'его';
+                else if (lWord.endsWith('ый')) word = word.slice(0, -2) + 'ого';
+                else if (lWord.endsWith('ая')) word = word.slice(0, -2) + 'ой';
+                else if (lWord.endsWith('яя')) word = word.slice(0, -2) + 'ей';
+                else if (lWord.endsWith('ь')) word = word.slice(0, -1) + 'я';
+                else if (lWord.endsWith('й')) word = word.slice(0, -1) + 'я';
+                else if (lWord.endsWith('а')) {
+                    if (/[гкхжчшщ]/.test(lWord.slice(-2, -1))) word = word.slice(0, -1) + 'и';
+                    else word = word.slice(0, -1) + 'ы';
+                }
+                else if (lWord.endsWith('я')) word = word.slice(0, -1) + 'и';
+                else if (/[бвгджзклмнпрстфхцчшщ]$/i.test(lWord)) word = word + 'а';
+                
+                if (!isAdjective) {
+                    foundNoun = true;
+                }
+            }
+            result.push(word);
+        }
+        return result.join(' ').toLowerCase();
+    };
     
     // Create document
     const doc = new Document({
@@ -63,9 +104,9 @@ export const generateVacationDocument = async (user: any, startDate: string, end
             properties: {},
             children: [
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("Генеральному директору")] }),
-                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("ООО « РЭС Креативные технологии»")] }),
+                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("ООО «РЭС - Креативные технологии»")] }),
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("Староверову Е.А.")] }),
-                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`от ${user.position || user.department || 'должность'}`)] }),
+                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`от ${getGenitivePosition(user.position || user.department || 'должность')}`)] }),
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`${getGenitiveName(user.name)}`)] }),
                 new Paragraph({
                     text: "",
