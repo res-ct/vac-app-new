@@ -12,10 +12,10 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
     const { currentUser: user, users, vacations: vacs, holidays, emailTemplates } = useAppContext();
     const [sel, setSel] = useState({ start: null as Date | null, end: null as Date | null, count: 0 }), [replacementId, setReplacementId] = useState(''), [isSendingDrafts, setIsSendingDrafts] = useState(false);
     const [errorModal, setErrorModal] = useState<string | null>(null);
-    const [downloadPopup, setDownloadPopup] = useState<string | null>(null);
+    const [downloadPopup, setDownloadPopup] = useState<{msg: string, y: number} | null>(null);
 
     useEffect(() => {
-        if (errorModal || isSendingDrafts || downloadPopup) {
+        if (errorModal || isSendingDrafts) {
             if ('parentIFrame' in window && (window as any).parentIFrame) {
                 (window as any).parentIFrame.scrollToOffset(0, 0);
             } else {
@@ -98,11 +98,12 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                                 </div>
                                 <div className="flex gap-1">
                                     {v.status === 'approved' && (
-                                        <button onClick={async () => {
+                                        <button onClick={async (e) => {
+                                            const yPos = e.pageY;
                                             await generateVacationDocument(user, v.startDate, v.endDate, countBillableDays(v.startDate, v.endDate, holidays));
                                             let msg = emailTemplates?.downloadPopupMessage || '{{name}}, распечатай скачанное заявление, подпиши и отправь скан на почту buh@test.ru';
                                             msg = msg.replace(/{{name}}/g, user.name);
-                                            setDownloadPopup(msg);
+                                            setDownloadPopup({ msg, y: yPos });
                                         }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded transition-colors" title="Скачать заявление"><Download className="w-4 h-4"/></button>
                                     )}
                                     <button onClick={()=>onDel(v.id)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition-colors" title="Удалить"><Trash2 className="w-4 h-4"/></button>
@@ -132,18 +133,19 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                 </div>
             )}
             {downloadPopup && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-32 p-4 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-gray-200 text-center">
+                <>
+                    <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm animate-fadeIn"></div>
+                    <div className="absolute z-50 bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-gray-200 text-center transform -translate-x-1/2 -translate-y-1/2 animate-fadeIn" style={{ top: `${downloadPopup.y}px`, left: '50%' }}>
                         <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
                             <FileText className="w-6 h-6 text-blue-600" />
                         </div>
                         <h4 className="font-bold text-gray-800 text-lg mb-2">Заявление скачано</h4>
-                        <p className="text-sm text-gray-600 mb-6">{downloadPopup}</p>
+                        <p className="text-sm text-gray-600 mb-6">{downloadPopup.msg}</p>
                         <button onClick={() => setDownloadPopup(null)} className="w-full py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
                             Понятно
                         </button>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );
