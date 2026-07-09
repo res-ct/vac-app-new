@@ -33,7 +33,8 @@ export default function App() {
     rejectionCc: '',
     reminderSubject: 'Скоро отпуск у сотрудника',
     reminderMessage: 'Через 7 дней у сотрудника {{name}} начнется отпуск с {{startDate}} по {{endDate}}.',
-    reminderCc: ''
+    reminderCc: '',
+    downloadPopupMessage: '{{name}}, распечатай скачанное заявление, подпиши и отправь скан на почту buh@test.ru'
   });
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isReady, setIsReady] = useState(false);
@@ -112,7 +113,7 @@ export default function App() {
         
         const diffDays = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
-        if (diffDays === 7) {
+        if (diffDays <= 7 && diffDays > 0) {
           const emp = users.find(u => u.id === v.userId);
           if (emp) {
             const manager = users.find(u => u.department === emp.department && u.role === 'manager');
@@ -164,9 +165,20 @@ export default function App() {
   }, [vacations, users, isReady]);
 
   useEffect(() => {
+    const savedUserId = localStorage.getItem('savedUserId');
     if (auth.currentUser && users.length > 0 && !currentUser) {
         const matchedUser = users.find(u => u.email === auth.currentUser?.email);
-        if (matchedUser) setCurrentUser(matchedUser);
+        if (matchedUser) {
+            setCurrentUser(matchedUser);
+            localStorage.setItem('savedUserId', matchedUser.id.toString());
+        }
+    } else if (savedUserId && users.length > 0 && !currentUser) {
+        const matchedUser = users.find(u => u.id.toString() === savedUserId);
+        if (matchedUser) {
+            setCurrentUser(matchedUser);
+        } else {
+            localStorage.removeItem('savedUserId');
+        }
     }
   }, [users, currentUser]);
 
@@ -205,10 +217,11 @@ export default function App() {
     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'email_templates'), newTemplates);
   };
 
-if (!isReady) return <div className="min-h-[750px] flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  if (!isReady) return <div className="min-h-[750px] flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+
   if (!currentUser) return (
       <AppContext.Provider value={{ users, authSettings }}>
-          <LoginScreen onLogin={setCurrentUser} />
+          <LoginScreen onLogin={(user: any) => { localStorage.setItem('savedUserId', user.id.toString()); setCurrentUser(user); }} />
       </AppContext.Provider>
   );
 
@@ -224,7 +237,7 @@ if (!isReady) return <div className="min-h-[750px] flex items-center justify-cen
   return (
     <AppContext.Provider value={{ currentUser, users, departments, deptDocs, vacations, holidays, authSettings, auditLogs, logAction, emailTemplates, updateEmailTemplates }}>
       <div className="min-h-[750px] bg-gray-50/50 font-sans text-gray-900 pb-12">
-        <Header onLogout={() => { auth.signOut(); setCurrentUser(null); }} />
+        <Header onLogout={() => { auth.signOut(); localStorage.removeItem('savedUserId'); setCurrentUser(null); }} />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {currentUser.role === 'admin' ? <AdminDashboard /> : (
             <>

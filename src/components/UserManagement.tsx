@@ -9,7 +9,7 @@ import { countBillableDays } from '../lib/utils';
 
 export const UserManagement = () => {
     const { users, departments, vacations, holidays, logAction } = useAppContext();
-    const [isAdding, setIsAdding] = useState(false), [editingUser, setEditingUser] = useState<any>(null), [formData, setFormData] = useState({ name: '', email: '', department: departments[0] || '', hireDate: '', yearlyAllowance: 28, carryOverDays: 0, role: 'employee', password: '123' });
+    const [isAdding, setIsAdding] = useState(false), [editingUser, setEditingUser] = useState<any>(null), [formData, setFormData] = useState({ name: '', email: '', department: departments[0] || '', position: '', hireDate: '', yearlyAllowance: 28, carryOverDays: 0, role: 'employee', password: '123' });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [confirmDelete, setConfirmDelete] = useState<any>(null), [confirmDeleteAll, setConfirmDeleteAll] = useState(false), [importInfo, setImportInfo] = useState<any>(null), [selectedIds, setSelectedIds] = useState<number[]>([]), [bulkModal, setBulkModal] = useState<any>(null), [bulkValue, setBulkValue] = useState('');
 
@@ -23,7 +23,7 @@ export const UserManagement = () => {
         }
     }, [bulkModal, confirmDelete, confirmDeleteAll]);
 
-    const resetForm = () => { setFormData({ name: '', email: '', department: departments[0] || '', hireDate: '', yearlyAllowance: 28, carryOverDays: 0, role: 'employee', password: '123' }); setEditingUser(null); setIsAdding(false); };
+    const resetForm = () => { setFormData({ name: '', email: '', department: departments[0] || '', position: '', hireDate: '', yearlyAllowance: 28, carryOverDays: 0, role: 'employee', password: '123' }); setEditingUser(null); setIsAdding(false); };
     const handleEdit = (user: any) => { setEditingUser(user); setFormData({ ...user }); setIsAdding(true); };
     
     const handleDelete = async () => { if (confirmDelete && confirmDelete._docId) { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', confirmDelete._docId)); logAction('DELETE_USER', `Удален сотрудник: ${confirmDelete.name}`, confirmDelete.id, confirmDelete); setConfirmDelete(null); } };
@@ -118,6 +118,7 @@ export const UserManagement = () => {
                         <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">ФИО</label><input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                         <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">Email (для входа)</label><input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="user@company.com" /></div>
                         <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">Отдел</label><select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500 bg-white">{departments.map((d: string, i: number) => <option key={`opt-${i}`} value={d}>{d}</option>)}</select></div>
+                        <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">Должность</label><input type="text" value={formData.position || ''} onChange={e => setFormData({...formData, position: e.target.value})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Разработчик" /></div>
                         <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">Роль</label><select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="employee">Сотрудник</option><option value="manager">Руководитель</option><option value="ceo">СЕО</option><option value="admin">Администратор</option></select></div>
                         <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">Дата найма</label><input type="date" required value={formData.hireDate} onChange={e => setFormData({...formData, hireDate: e.target.value})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                         <div className="flex flex-col"><label className="text-xs text-gray-500 font-semibold mb-1 uppercase">Квота (дней/год)</label><input type="number" required value={formData.yearlyAllowance} onChange={e => setFormData({...formData, yearlyAllowance: Number(e.target.value)})} className="px-3 py-2 rounded border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500" /></div>
@@ -130,13 +131,13 @@ export const UserManagement = () => {
             
             <div className="overflow-auto max-h-96">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 sticky top-0"><tr><th className="p-3 w-8"><button onClick={toggleSelectAll} className="text-gray-400 hover:text-indigo-600">{allSelected ? <CheckSquare className="w-5 h-5 text-indigo-600" /> : <Square className="w-5 h-5" />}</button></th><th>ФИО / Email</th><th>Отдел</th><th>Квота / Остаток</th><th></th></tr></thead>
+                    <thead className="bg-gray-50 sticky top-0"><tr><th className="p-3 w-8"><button onClick={toggleSelectAll} className="text-gray-400 hover:text-indigo-600">{allSelected ? <CheckSquare className="w-5 h-5 text-indigo-600" /> : <Square className="w-5 h-5" />}</button></th><th>ФИО / Email</th><th>Отдел / Должность</th><th>Квота / Остаток</th><th></th></tr></thead>
                     <tbody>
                         {users.filter((u: any)=>u.role!=='admin').map((u: any)=>(
                             <tr key={u._docId || u.id} className="border-b border-gray-100 hover:bg-gray-50">
                                 <td className="p-3"><button onClick={()=>toggleSelectUser(u.id)} className="text-gray-300 hover:text-indigo-500">{selectedIds.includes(u.id)?<CheckSquare className="w-5 h-5 text-indigo-600"/>:<Square className="w-5 h-5 text-gray-300"/>}</button></td>
                                 <td className="p-3 font-medium text-gray-800">{u.name} <span className="text-xs text-gray-400">({u.role})</span><div className="text-[10px] text-gray-500 font-normal">{u.email || 'Нет email'}</div></td>
-                                <td className="p-3 text-gray-500">{u.department}</td>
+                                <td className="p-3 text-gray-500">{u.department}<div className="text-[10px] text-gray-400">{u.position || ''}</div></td>
                                 <td className="p-3 text-center"><span className="font-bold text-gray-800">{u.yearlyAllowance}</span> / <span className="text-green-600">+{u.carryOverDays}</span></td>
                                 <td className="p-3 text-right"><button onClick={() => handleEdit(u)} className="text-blue-500 p-1 hover:bg-blue-50 rounded"><Pencil className="w-3 h-3"/></button><button onClick={() => setConfirmDelete(u)} className="text-red-400 p-1 hover:bg-red-50 rounded"><Trash2 className="w-3 h-3"/></button></td>
                             </tr>

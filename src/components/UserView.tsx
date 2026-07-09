@@ -1,19 +1,21 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, FileText, Send, ClipboardList, Trash2, UserCheck, Mail, Users, AlertCircle } from 'lucide-react';
+import { Plus, FileText, Send, ClipboardList, Trash2, UserCheck, Mail, Users, AlertCircle, Download } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { countBillableDays, getApproverForUser } from '../lib/utils';
 import { BalanceCard } from './BalanceCard';
 import { PersonalYearCalendar } from './PersonalYearCalendar';
 import { TeamCalendar } from './TeamCalendar';
 import { ConfirmModal } from './ConfirmModal';
+import { generateVacationDocument } from '../lib/documentGenerator';
 
 export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
-    const { currentUser: user, users, vacations: vacs, holidays } = useAppContext();
+    const { currentUser: user, users, vacations: vacs, holidays, emailTemplates } = useAppContext();
     const [sel, setSel] = useState({ start: null as Date | null, end: null as Date | null, count: 0 }), [replacementId, setReplacementId] = useState(''), [isSendingDrafts, setIsSendingDrafts] = useState(false);
     const [errorModal, setErrorModal] = useState<string | null>(null);
+    const [downloadPopup, setDownloadPopup] = useState<string | null>(null);
 
     useEffect(() => {
-        if (errorModal || isSendingDrafts) {
+        if (errorModal || isSendingDrafts || downloadPopup) {
             if ('parentIFrame' in window && (window as any).parentIFrame) {
                 (window as any).parentIFrame.scrollToOffset(0, 0);
             } else {
@@ -51,7 +53,7 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
         const drafts = vacs.filter((v: any) => v.userId === user.id && v.status === 'draft'); if (!drafts.length) return;
         const totalDraftDays = drafts.reduce((acc: number, d: any) => acc + countBillableDays(d.startDate, d.endDate, holidays), 0);
         if (totalDraftDays > remainingDays) {
-            setErrorModal(`Недостаточно дней отпуска. Черновики содержат ${totalDraftDays} дн., а доступно всего ${remainingDays} дн.`);
+            setErrorModal(`Недостаточно дней отпуска. Заявки содержат ${totalDraftDays} дн., а доступно всего ${remainingDays} дн.`);
             return;
         }
         setIsSendingDrafts(true);
@@ -81,7 +83,7 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex-grow">
-                     <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-gray-500"/>Черновики</h3>{draftCount > 0 && (<button onClick={sendAllDrafts} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs hover:bg-blue-100 font-medium transition-colors"><Send className="w-3 h-3"/> Отправить все</button>)}</div>
+                     <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-gray-500"/>Заявки</h3>{draftCount > 0 && (<button onClick={sendAllDrafts} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs hover:bg-blue-100 font-medium transition-colors"><Send className="w-3 h-3"/> Отправить все</button>)}</div>
                     <div className="space-y-2">
                         {vacs.filter((v: any)=>v.userId===user.id).length === 0 && <p className="text-sm text-gray-400 italic">Пока нет запланированных отпусков</p>}
                         {vacs.filter((v: any)=>v.userId===user.id).sort((a: any,b: any)=>new Date(a.startDate).getTime()-new Date(b.startDate).getTime()).map((v: any)=>(
@@ -94,7 +96,17 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                                     </div>
                                     {v.replacementId && <div className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><UserCheck className="w-3 h-3"/> Зам: {users.find((u: any)=>u.id===v.replacementId)?.name}</div>}
                                 </div>
-                                {<button onClick={()=>onDel(v.id)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition-colors" title="Удалить"><Trash2 className="w-4 h-4"/></button>}
+                                <div className="flex gap-1">
+                                    {v.status === 'approved' && (
+                                        <button onClick={async () => {
+                                            await generateVacationDocument(user, v.startDate, v.endDate, countBillableDays(v.startDate, v.endDate, holidays));
+                                            let msg = emailTemplates?.downloadPopupMessage || '{{name}}, распечатай скачанное заявление, подпиши и отправь скан на почту buh@test.ru';
+                                            msg = msg.replace(/{{name}}/g, user.name);
+                                            setDownloadPopup(msg);
+                                        }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded transition-colors" title="Скачать заявление"><Download className="w-4 h-4"/></button>
+                                    )}
+                                    <button onClick={()=>onDel(v.id)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition-colors" title="Удалить"><Trash2 className="w-4 h-4"/></button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -114,6 +126,20 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                         <h4 className="font-bold text-gray-800 text-lg mb-2">Ошибка отправки</h4>
                         <p className="text-sm text-gray-600 mb-6">{errorModal}</p>
                         <button onClick={() => setErrorModal(null)} className="w-full py-2 bg-gray-100 text-gray-800 font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
+            {downloadPopup && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-32 p-4 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-gray-200 text-center">
+                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                            <FileText className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <h4 className="font-bold text-gray-800 text-lg mb-2">Заявление скачано</h4>
+                        <p className="text-sm text-gray-600 mb-6">{downloadPopup}</p>
+                        <button onClick={() => setDownloadPopup(null)} className="w-full py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
                             Понятно
                         </button>
                     </div>

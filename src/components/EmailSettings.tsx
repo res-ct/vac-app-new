@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Save, Info } from 'lucide-react';
+import { Mail, Save, Info, Play } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import emailjs from '@emailjs/browser';
 
 export const EmailSettings = () => {
-    const { emailTemplates, updateEmailTemplates } = useAppContext();
+    const { emailTemplates, updateEmailTemplates, currentUser } = useAppContext();
     const [templates, setTemplates] = useState<any>({
         rejectionSubject: 'Заявка на отпуск отклонена',
         rejectionMessage: 'Здравствуйте, {{name}}. Ваша заявка на отпуск с {{startDate}} по {{endDate}} была отклонена руководителем.',
         rejectionCc: '',
         reminderSubject: 'Скоро отпуск у сотрудника',
         reminderMessage: 'Через 7 дней у сотрудника {{name}} начнется отпуск с {{startDate}} по {{endDate}}.',
-        reminderCc: ''
+        reminderCc: '',
+        downloadPopupMessage: '{{name}}, распечатай скачанное заявление, подпиши и отправь скан на почту buh@test.ru'
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [isTesting, setIsTesting] = useState(false);
 
     useEffect(() => {
         if (emailTemplates) {
@@ -37,13 +40,57 @@ export const EmailSettings = () => {
         }
     };
 
+    const handleTestEmail = async (e: any) => {
+        e.preventDefault();
+        setIsTesting(true);
+        window.dispatchEvent(new CustomEvent('app-toast', { 
+            detail: { title: 'Отправка', message: 'Попытка отправить тестовое письмо...', type: 'self' } 
+        }));
+        try {
+            const subject = templates.rejectionSubject || 'Тестовое письмо';
+            let message = templates.rejectionMessage || 'Здравствуйте, {{name}}. Это тестовое сообщение.';
+            message = message.replace(/{{name}}/g, 'Тестовый Сотрудник').replace(/{{startDate}}/g, '01.01.2024').replace(/{{endDate}}/g, '14.01.2024');
+
+            const testEmail = currentUser?.email || 'test@example.com';
+
+            await emailjs.send(
+                'service_0rphyiq', 
+                'template_ledfu5o', 
+                { 
+                    to_email: testEmail,
+                    to_name: currentUser?.name || 'Тестовый Пользователь',
+                    cc_emails: templates.rejectionCc || '',
+                    subject: subject,
+                    message: message + "\n\n(Это тестовое письмо из настроек)"
+                }, 
+                '5Q8hmgz0oZzkUr87Z'
+            );
+
+            window.dispatchEvent(new CustomEvent('app-toast', { 
+                detail: { title: 'Успех', message: `Тестовое письмо отправлено на ${testEmail}`, type: 'success' } 
+            }));
+        } catch (e: any) {
+            console.error("Test email error:", e);
+            window.dispatchEvent(new CustomEvent('app-toast', { 
+                detail: { title: 'Ошибка отправки', message: `EmailJS: ${e.text || e.message || 'Проверьте ключи и шаблоны.'}`, type: 'error' } 
+            }));
+        } finally {
+            setIsTesting(false);
+        }
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2"><Mail className="w-5 h-5 text-blue-600" /> Шаблоны писем</h3>
-                <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50">
-                    <Save className="w-4 h-4" /> {isSaving ? 'Сохранение...' : 'Сохранить'}
-                </button>
+                <div className="flex items-center gap-3">
+                    <button onClick={handleTestEmail} disabled={isTesting} className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium disabled:opacity-50">
+                        <Play className="w-4 h-4" /> {isTesting ? 'Отправка...' : 'Тест отправки'}
+                    </button>
+                    <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50">
+                        <Save className="w-4 h-4" /> {isSaving ? 'Сохранение...' : 'Сохранить'}
+                    </button>
+                </div>
             </div>
             <div className="p-6 space-y-8">
                 <div className="bg-blue-50 text-blue-800 p-4 rounded-lg flex gap-3 items-start text-sm border border-blue-100">
@@ -96,6 +143,15 @@ export const EmailSettings = () => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Текст письма</label>
                         <textarea value={templates.reminderMessage || ''} onChange={e => setTemplates({...templates, reminderMessage: e.target.value})} rows={4} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y" />
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <h4 className="font-bold text-gray-800 border-b pb-2">Уведомление после скачивания заявления</h4>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Текст сообщения в окне</label>
+                        <textarea value={templates.downloadPopupMessage || ''} onChange={e => setTemplates({...templates, downloadPopupMessage: e.target.value})} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y" />
+                        <p className="text-xs text-gray-500 mt-1">Поддерживается переменная <code>{`{{name}}`}</code></p>
                     </div>
                 </div>
             </div>

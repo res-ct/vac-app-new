@@ -70,7 +70,7 @@ export const TeamCalendar = ({ currentMonthDate, onPrev, onNext, viewMode, setVi
                                 const daysInMonth = new Date(year, mIdx+1, 0).getDate();
                                 return viewMode === 'year' ? <div key={`mhdr-${mIdx}`} className="flex-1 text-center text-xs font-semibold py-3 border-r border-gray-200 text-gray-600">{MONTHS_SHORT[mIdx]}</div> : Array.from({length:daysInMonth},(_,i)=>i+1).map(d => {
                                         const currentDate = new Date(year, mIdx, d), isWe = isWeekend(currentDate, holidays), isToday = isSameDay(currentDate, today);
-                                        return (<div key={`dhdr-${mIdx}-${d}`} className={`w-8 flex-shrink-0 flex flex-col items-center justify-center text-[10px] py-2 border-r border-gray-200 min-w-[28px] ${isWe ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-600'} ${isToday ? 'bg-blue-50 text-blue-600 font-bold ring-1 ring-inset ring-blue-200' : ''}`}>{d}</div>)
+                                        return (<div key={`dhdr-${mIdx}-${d}`} className={`w-8 flex-shrink-0 flex flex-col items-center justify-center text-[10px] py-2 border-r border-gray-200 min-w-[28px] ${isWe ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-600'} ${isToday ? 'text-blue-600 font-bold bg-blue-50 ring-1 ring-inset ring-blue-300 rounded-sm z-10' : ''}`}>{d}</div>)
                                     });
                             })}
                         </div>
