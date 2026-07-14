@@ -70,7 +70,7 @@ export const TeamCalendar = ({ currentMonthDate, onPrev, onNext, viewMode, setVi
                                 const daysInMonth = new Date(year, mIdx+1, 0).getDate();
                                 return viewMode === 'year' ? <div key={`mhdr-${mIdx}`} className="flex-1 text-center text-xs font-semibold py-3 border-r border-gray-200 text-gray-600">{MONTHS_SHORT[mIdx]}</div> : Array.from({length:daysInMonth},(_,i)=>i+1).map(d => {
                                         const currentDate = new Date(year, mIdx, d), isWe = isWeekend(currentDate, holidays), isToday = isSameDay(currentDate, today);
-                                        return (<div key={`dhdr-${mIdx}-${d}`} className={`w-8 flex-shrink-0 flex flex-col items-center justify-center text-[10px] py-2 border-r border-gray-200 min-w-[28px] ${isWe ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-600'} ${isToday ? 'text-blue-600 font-bold bg-blue-50 ring-1 ring-inset ring-blue-300 rounded-sm z-10' : ''}`}>{d}</div>)
+                                        return (<div key={`dhdr-${mIdx}-${d}`} className={`w-8 flex-shrink-0 flex flex-col items-center justify-center text-[10px] py-2 border-r border-gray-200 min-w-[28px] ${isWe ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-600'} ${isToday ? 'text-blue-600 font-bold bg-blue-100 ring-1 ring-inset ring-blue-300 rounded-sm z-10' : ''}`}>{d}</div>)
                                     });
                             })}
                         </div>
@@ -87,13 +87,17 @@ export const TeamCalendar = ({ currentMonthDate, onPrev, onNext, viewMode, setVi
                                         const days = new Date(year, mIdx+1, 0).getDate();
                                         return viewMode === 'year' ? <div key={`cyear-${u.id}-${mIdx}`} className="flex-1 border-r border-gray-200 relative bg-white">{Array.from({length:days},(_,i)=>i+1).map(d=>{
                                             const dt = new Date(year,mIdx,d).getTime(), v = getVacationForDay(u.id, dt);
+                                            const isToday = isSameDay(new Date(year, mIdx, d), today);
+                                            let res = [];
+                                            if (isToday) res.push(<div key={`today-${u.id}-${mIdx}-${d}`} className="absolute inset-y-0 bg-blue-200/60" style={{left:`${(d/days)*100}%`, width: `${100/days}%`}}/>);
                                             if (v && v.status === 'approved') {
                                                 const dateStr = `${parseDateLocalObj(v.startDate).toLocaleDateString()} — ${parseDateLocalObj(v.endDate).toLocaleDateString()}`;
-                                                return <div key={`v-${u.id}-${mIdx}-${d}`} className="absolute inset-y-1 bg-blue-500 rounded-sm opacity-90" title={`Отпуск: ${dateStr}`} style={{left:`${(d/days)*100}%`, width: `${100/days}%`}}/>;
+                                                res.push(<div key={`v-${u.id}-${mIdx}-${d}`} className="absolute inset-y-1 bg-blue-500 rounded-sm opacity-90" title={`Отпуск: ${dateStr}`} style={{left:`${(d/days)*100}%`, width: `${100/days}%`}}/>);
                                             }
-                                            return null;
+                                            return res;
                                         })}</div> : Array.from({length:days},(_,i)=>i+1).map(d => {
                                             const dt = new Date(year, mIdx, d).getTime(), v = getVacationForDay(u.id, dt), isWe = isWeekend(new Date(year, mIdx, d), holidays), isLocal = u.id === currentUser.id && isLocalDraftDay(dt);
+                                            const isToday = isSameDay(new Date(year, mIdx, d), today);
                                             let content = null;
                                             if (isLocal) content = <div className="absolute inset-1 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes-light.png')] bg-indigo-100 border border-indigo-300 rounded-sm animate-pulse" title="Планируется"></div>;
                                             else if (v) { 
@@ -102,7 +106,7 @@ export const TeamCalendar = ({ currentMonthDate, onPrev, onNext, viewMode, setVi
                                                 else if (v.status === 'pending') content = <div className="absolute inset-1 bg-[url('https://www.transparenttextures.com/patterns/diagonal-stripes-light.png')] bg-amber-200 rounded-sm border border-amber-300" title={`На согласовании: ${dateStr}`}></div>; 
                                                 else if (v.status === 'draft') content = <div className="absolute inset-1 border-2 border-dashed border-gray-300 rounded-sm bg-gray-50" title={`Черновик: ${dateStr}`}></div>; 
                                             }
-                                            return <div key={`cday-${u.id}-${mIdx}-${d}`} className={`w-8 flex-shrink-0 border-r border-gray-100 relative min-w-[28px] ${isWe ? 'bg-gray-50' : 'bg-white'}`}>{content}</div>
+                                            return <div key={`cday-${u.id}-${mIdx}-${d}`} className={`w-8 flex-shrink-0 border-r border-gray-100 relative min-w-[28px] ${isToday ? 'bg-blue-100' : (isWe ? 'bg-gray-50' : 'bg-white')}`}>{content}</div>
                                         })
                                     })}</div>
                                 </div>
