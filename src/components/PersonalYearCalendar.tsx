@@ -9,9 +9,9 @@ export const PersonalYearCalendar = ({ year, onSelectRange, selection, onPrevYea
     const [tooltip, setTooltip] = useState<any>(null);
     const [selectedUserId, setSelectedUserId] = useState<string>(user.id.toString());
 
-    const subordinates = user.role === 'ceo' 
-        ? users.filter((u: any) => u.id !== user.id && (u.role === 'manager' || (u.role === 'employee' && !users.some((other: any) => other.department === u.department && other.role === 'manager'))))
-        : users.filter((u: any) => u.department === user.department && u.id !== user.id);
+    const subordinates = (user.role === 'ceo' 
+        ? users.filter((u: any) => u.id !== user.id)
+        : users.filter((u: any) => u.department === user.department && u.id !== user.id)).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
 
     const allTeamMembers = [user, ...subordinates];
     const targetUserId = selectedUserId;
