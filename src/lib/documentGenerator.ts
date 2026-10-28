@@ -104,7 +104,7 @@ export const generateVacationDocument = async (user: any, startDate: string, end
             properties: {},
             children: [
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("Генеральному директору")] }),
-                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("ООО «РЭС - Креативные технологии»")] }),
+                new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("ООО «РЭС Креативные технологии»")] }),
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun("Староверову Е.А.")] }),
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`от ${getGenitivePosition(user.position || user.department || 'должность')}`)] }),
                 new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun(`${getGenitiveName(user.name)}`)] }),
