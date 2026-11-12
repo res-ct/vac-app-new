@@ -85,7 +85,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({ year: externalYear, on
 
             {stats.isHireYear && (
                 <div className="mb-2 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-2 text-center text-xs">
-                    💼 <b>{activeYear} г.</b> — год приема на работу. Квота рассчитана за {stats.workedMonths} мес. ({stats.yearlyQuota} дн.). В {activeYear + 1} году квота составит полные 28 дней.
+                    <b>{activeYear} г.</b> — год приема на работу. Квота рассчитана за {stats.workedMonths} мес. ({stats.yearlyQuota} дн.). В {activeYear + 1} году квота составит полные 28 дней.
                 </div>
             )}
             {stats.pendingDays > 0 && (
