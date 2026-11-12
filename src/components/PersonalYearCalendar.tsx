@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { isWeekend, parseDateLocal, isSameDay, parseDateLocalObj } from '../lib/utils';
+import { isWeekend, parseDateLocal, isSameDay, parseDateLocalObj, calculateUserVacationStatsForYear } from '../lib/utils';
 import { FULL_MONTHS, WEEKDAYS } from '../lib/constants';
 
-export const PersonalYearCalendar = ({ year, onSelectRange, selection, onPrevYear, onNextYear }: any) => {
+export const PersonalYearCalendar = ({ year, onSelectRange, selection, onPrevYear, onNextYear, balance }: any) => {
     const { currentUser: user, vacations, users, holidays } = useAppContext();
     const [tooltip, setTooltip] = useState<any>(null);
     const [selectedUserId, setSelectedUserId] = useState<string>(user.id.toString());
@@ -15,6 +15,9 @@ export const PersonalYearCalendar = ({ year, onSelectRange, selection, onPrevYea
 
     const allTeamMembers = [user, ...subordinates];
     const targetUserId = selectedUserId;
+    const targetUserObj = allTeamMembers.find(u => u.id.toString() === targetUserId) || user;
+    const targetUserStats = calculateUserVacationStatsForYear(targetUserObj, vacations, holidays, year);
+
     const teamIds = selectedUserId === user.id.toString() 
         ? allTeamMembers.filter(u => u.id.toString() !== targetUserId).map(u => u.id)
         : [];
@@ -99,7 +102,7 @@ export const PersonalYearCalendar = ({ year, onSelectRange, selection, onPrevYea
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    <div className="text-sm text-gray-500 mr-4">Выбрано: <span className="font-bold text-indigo-600">{selection.count}</span> дн.</div>
+                    <div className="text-sm text-gray-500 mr-2">Выбрано: <span className="font-bold text-indigo-600">{selection.count}</span> дн.</div>
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">{Array.from({length: 12}, (_, i) => renderMonth(i))}</div>
