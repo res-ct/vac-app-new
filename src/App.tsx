@@ -50,10 +50,10 @@ export default function App() {
     );
     const unsubDepts = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'departments'), 
       (snap) => {
-        const docs = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        const docs: any[] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
         const uniqueNames = new Set();
         const duplicates: any[] = [];
-        docs.forEach(d => {
+        docs.forEach((d: any) => {
           const name = (d.name || '').trim();
           if (uniqueNames.has(name.toLowerCase())) duplicates.push(d);
           else uniqueNames.add(name.toLowerCase());
@@ -166,19 +166,26 @@ export default function App() {
 
   useEffect(() => {
     const savedUserId = localStorage.getItem('savedUserId');
-    if (auth.currentUser && users.length > 0 && !currentUser) {
+    if (users.length > 0) {
+      if (currentUser) {
+        const matched = users.find(u => u.id === currentUser.id);
+        if (matched && JSON.stringify(matched) !== JSON.stringify(currentUser)) {
+          setCurrentUser(matched);
+        }
+      } else if (auth.currentUser) {
         const matchedUser = users.find(u => u.email === auth.currentUser?.email);
         if (matchedUser) {
-            setCurrentUser(matchedUser);
-            localStorage.setItem('savedUserId', matchedUser.id.toString());
+          setCurrentUser(matchedUser);
+          localStorage.setItem('savedUserId', matchedUser.id.toString());
         }
-    } else if (savedUserId && users.length > 0 && !currentUser) {
+      } else if (savedUserId) {
         const matchedUser = users.find(u => u.id.toString() === savedUserId);
         if (matchedUser) {
-            setCurrentUser(matchedUser);
+          setCurrentUser(matchedUser);
         } else {
-            localStorage.removeItem('savedUserId');
+          localStorage.removeItem('savedUserId');
         }
+      }
     }
   }, [users, currentUser]);
 
