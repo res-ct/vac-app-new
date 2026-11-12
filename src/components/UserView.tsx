@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, FileText, Send, ClipboardList, Trash2, UserCheck, Mail, Users, AlertCircle, Download } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { countBillableDays, getApproverForUser } from '../lib/utils';
+import { countBillableDays, countBillableDaysForYear, calculateUserVacationStatsForYear, getApproverForUser, parseDateLocalObj, parseDateLocal } from '../lib/utils';
 import { BalanceCard } from './BalanceCard';
 import { PersonalYearCalendar } from './PersonalYearCalendar';
 import { TeamCalendar } from './TeamCalendar';
@@ -24,10 +24,20 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
         }
     }, [errorModal, isSendingDrafts]);
 
-    const draftCount = vacs.filter((v: any) => v.userId === user.id && v.status === 'draft').length;
-    const totalAllowance = Number(user.yearlyAllowance) + Number(user.carryOverDays);
-    const usedDays = vacs.filter((v: any) => v.userId === user.id && v.status !== 'rejected' && v.status !== 'draft').reduce((acc: number, v: any) => acc + countBillableDays(v.startDate, v.endDate, holidays), 0);
-    const remainingDays = totalAllowance - usedDays;
+    const calendarYear = calendarProps.currentMonthDate.getFullYear();
+    const activeYearStats = calculateUserVacationStatsForYear(user, vacs, holidays, calendarYear);
+
+    // Only show requests for the selected calendar year
+    const yearVacs = useMemo(() => {
+        return vacs.filter((v: any) => {
+            if (v.userId !== user.id) return false;
+            const startYear = parseDateLocalObj(v.startDate).getFullYear();
+            const endYear = parseDateLocalObj(v.endDate).getFullYear();
+            return startYear === calendarYear || endYear === calendarYear;
+        }).sort((a: any, b: any) => parseDateLocal(a.startDate) - parseDateLocal(b.startDate));
+    }, [vacs, user.id, calendarYear]);
+
+    const draftCount = yearVacs.filter((v: any) => v.status === 'draft').length;
 
     const potentialReplacements = useMemo(() => {
         if (user.role === 'ceo') return users.filter((u: any) => u.id !== user.id && u.role === 'manager');
@@ -38,10 +48,31 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
 
     const handleAction = async (status: string) => {
         if (!sel.start || !sel.end) return;
-        if (sel.count > remainingDays) {
-            setErrorModal(`Недостаточно дней отпуска. Выбрано ${sel.count} дн., а доступно всего ${remainingDays} дн.`);
-            return;
+        const sYear = sel.start.getFullYear();
+        const eYear = sel.end.getFullYear();
+
+        if (sYear === eYear) {
+            const stats = calculateUserVacationStatsForYear(user, vacs, holidays, sYear);
+            if (sel.count > stats.availableWithoutDrafts) {
+                setErrorModal(`Недостаточно дней отпуска на ${sYear} год. Выбрано ${sel.count} дн., а доступно ${Math.max(0, stats.availableWithoutDrafts)} дн. (с учетом квоты и остатков прошлых лет).`);
+                return;
+            }
+        } else {
+            const daysY1 = countBillableDaysForYear(sel.start, sel.end, sYear, holidays);
+            const daysY2 = countBillableDaysForYear(sel.start, sel.end, eYear, holidays);
+            const stats1 = calculateUserVacationStatsForYear(user, vacs, holidays, sYear);
+            const stats2 = calculateUserVacationStatsForYear(user, vacs, holidays, eYear);
+
+            if (daysY1 > stats1.availableWithoutDrafts) {
+                setErrorModal(`Недостаточно дней отпуска на ${sYear} год. На ${sYear} приходится ${daysY1} дн., а доступно ${Math.max(0, stats1.availableWithoutDrafts)} дн.`);
+                return;
+            }
+            if (daysY2 > stats2.availableWithoutDrafts) {
+                setErrorModal(`Недостаточно дней отпуска на ${eYear} год. На ${eYear} приходится ${daysY2} дн., а доступно ${Math.max(0, stats2.availableWithoutDrafts)} дн.`);
+                return;
+            }
         }
+
         let finalStatus = status; if (status === 'pending' && (user.role === 'admin' || user.role === 'ceo')) finalStatus = 'approved';
         try {
             await onAdd({ userId: user.id, startDate: sel.start.toLocaleDateString('en-CA'), endDate: sel.end.toLocaleDateString('en-CA'), status: finalStatus, replacementId: replacementId ? Number(replacementId) : null });
@@ -50,17 +81,22 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
     };
 
     const sendAllDrafts = () => {
-        const drafts = vacs.filter((v: any) => v.userId === user.id && v.status === 'draft'); if (!drafts.length) return;
-        const totalDraftDays = drafts.reduce((acc: number, d: any) => acc + countBillableDays(d.startDate, d.endDate, holidays), 0);
-        if (totalDraftDays > remainingDays) {
-            setErrorModal(`Недостаточно дней отпуска. Заявки содержат ${totalDraftDays} дн., а доступно всего ${remainingDays} дн.`);
+        const drafts = yearVacs.filter((v: any) => v.status === 'draft'); 
+        if (!drafts.length) return;
+
+        const nonDraftVacs = vacs.filter((v: any) => v.userId === user.id && v.status !== 'draft');
+        const draftDaysInYear = drafts.reduce((sum: number, d: any) => sum + countBillableDaysForYear(d.startDate, d.endDate, calendarYear, holidays), 0);
+        const stats = calculateUserVacationStatsForYear(user, nonDraftVacs, holidays, calendarYear);
+        if (draftDaysInYear > stats.availableWithoutDrafts) {
+            setErrorModal(`Недостаточно дней отпуска на ${calendarYear} год. В черновиках ${draftDaysInYear} дн., а доступно ${Math.max(0, stats.availableWithoutDrafts)} дн.`);
             return;
         }
+
         setIsSendingDrafts(true);
     };
 
     const confirmSend = async () => {
-        const drafts = vacs.filter((v: any) => v.userId === user.id && v.status === 'draft'), finalStatus = (user.role === 'admin' || user.role === 'ceo') ? 'approved' : 'pending';
+        const drafts = yearVacs.filter((v: any) => v.status === 'draft'), finalStatus = (user.role === 'admin' || user.role === 'ceo') ? 'approved' : 'pending';
         try {
             await Promise.all(drafts.map((d: any) => onUpdate({ ...d, status: finalStatus })));
         } catch (e) { console.error(e); alert('Произошла ошибка при отправке заявок.'); }
@@ -72,7 +108,13 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col gap-6">
-                <BalanceCard />
+                <BalanceCard 
+                    year={calendarYear} 
+                    onYearChange={(newYear: number) => {
+                        if (newYear > calendarYear) calendarProps.onNextYear();
+                        else if (newYear < calendarYear) calendarProps.onPrevYear();
+                    }} 
+                />
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-blue-600"/>Параметры новой заявки</h3>
                     <div className="mb-4 text-sm text-gray-600">{sel.start && sel.end ? (<div><span className="block font-medium">Даты:</span> {sel.start.toLocaleDateString()} — {sel.end.toLocaleDateString()} <span className="ml-2 font-bold text-blue-600">({sel.count} дн.)</span></div>) : (<span className="italic text-gray-400">Выберите даты на календаре...</span>)}</div>
@@ -83,10 +125,20 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                     </div>
                 </div>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex-grow">
-                     <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-gray-800 flex items-center gap-2"><ClipboardList className="w-5 h-5 text-gray-500"/>Заявки</h3>{draftCount > 0 && (<button onClick={sendAllDrafts} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs hover:bg-blue-100 font-medium transition-colors"><Send className="w-3 h-3"/> Отправить все</button>)}</div>
+                     <div className="flex justify-between items-center mb-4">
+                         <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                             <ClipboardList className="w-5 h-5 text-gray-500"/>
+                             Заявки ({calendarYear} г.)
+                         </h3>
+                         {draftCount > 0 && (
+                             <button onClick={sendAllDrafts} className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs hover:bg-blue-100 font-medium transition-colors">
+                                 <Send className="w-3 h-3"/> Отправить все ({draftCount})
+                             </button>
+                         )}
+                     </div>
                     <div className="space-y-2">
-                        {vacs.filter((v: any)=>v.userId===user.id).length === 0 && <p className="text-sm text-gray-400 italic">Пока нет запланированных отпусков</p>}
-                        {vacs.filter((v: any)=>v.userId===user.id).sort((a: any,b: any)=>new Date(a.startDate).getTime()-new Date(b.startDate).getTime()).map((v: any)=>(
+                        {yearVacs.length === 0 && <p className="text-sm text-gray-400 italic">Пока нет запланированных отпусков на {calendarYear} год</p>}
+                        {yearVacs.map((v: any)=>(
                             <div key={v._docId || v.id} className="flex justify-between items-start text-sm border-b border-gray-100 pb-3 last:border-0 hover:bg-gray-50 p-2 rounded-lg transition-colors">
                                 <div>
                                     <div className="font-medium text-gray-800">{new Date(v.startDate).toLocaleDateString()} — {new Date(v.endDate).toLocaleDateString()}</div>
@@ -114,10 +166,10 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
                 </div>
             </div>
             <div className="md:col-span-2 space-y-8">
-                 <PersonalYearCalendar year={calendarProps.currentMonthDate.getFullYear()} onSelectRange={handleSelect} selection={sel} balance={remainingDays} onPrevYear={() => calendarProps.onPrevYear()} onNextYear={() => calendarProps.onNextYear()} />
+                 <PersonalYearCalendar year={calendarProps.currentMonthDate.getFullYear()} onSelectRange={handleSelect} selection={sel} balance={activeYearStats.remainingDays} onPrevYear={() => calendarProps.onPrevYear()} onNextYear={() => calendarProps.onNextYear()} />
                  <div className="mt-8"><h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Users className="w-6 h-6"/> График отдела</h2><TeamCalendar localDraft={sel} {...calendarProps} /></div>
             </div>
-            <ConfirmModal isOpen={isSendingDrafts} title="Отправка черновиков" message={`Отправить все черновики (${draftCount}) на согласование?`} confirmText="Отправить" isDanger={false} onConfirm={confirmSend} onCancel={() => setIsSendingDrafts(false)} />
+            <ConfirmModal isOpen={isSendingDrafts} title="Отправка черновиков" message={draftCount === 1 ? `Отправить черновик на ${calendarYear} год на согласование?` : `Отправить все черновики (${draftCount}) на ${calendarYear} год на согласование?`} confirmText="Отправить" isDanger={false} onConfirm={confirmSend} onCancel={() => setIsSendingDrafts(false)} />
             {errorModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-32 p-4 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border border-gray-200 text-center">
@@ -150,4 +202,3 @@ export const UserView = ({ onAdd, onUpdate, onDel, calendarProps }: any) => {
         </div>
     );
 };
- 
