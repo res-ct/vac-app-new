@@ -1,6 +1,9 @@
 export const CURRENT_YEAR = new Date().getFullYear();
-export const DEFAULT_HOLIDAYS = { [CURRENT_YEAR]: ['01-01', '02-01', '03-01', '04-01', '05-01', '06-01', '07-01', '08-01', '23-02', '08-03', '01-05', '09-05', '12-06', '04-11'], [CURRENT_YEAR + 1]: ['01-01', '02-01', '03-01', '04-01', '05-01', '06-01', '07-01', '08-01', '23-02', '08-03', '01-05', '09-05', '12-06', '04-11'] };
-export let GLOBAL_HOLIDAYS = { ...DEFAULT_HOLIDAYS };
+export const DEFAULT_HOLIDAYS: Record<string, string[]> = { [CURRENT_YEAR]: ['01-01', '02-01', '03-01', '04-01', '05-01', '06-01', '07-01', '08-01', '23-02', '08-03', '01-05', '09-05', '12-06', '04-11'], [CURRENT_YEAR + 1]: ['01-01', '02-01', '03-01', '04-01', '05-01', '06-01', '07-01', '08-01', '23-02', '08-03', '01-05', '09-05', '12-06', '04-11'] };
+export let GLOBAL_HOLIDAYS: Record<string, string[]> = { ...DEFAULT_HOLIDAYS };
+export const setGlobalHolidays = (data: any) => {
+    GLOBAL_HOLIDAYS = { ...DEFAULT_HOLIDAYS, ...data };
+};
 export const DEFAULT_AUTH_SETTINGS = { password: true, google: true, yandex: true };
 export const MONTHS_SHORT = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 export const FULL_MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ'];

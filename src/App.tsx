@@ -8,7 +8,7 @@ import { db, auth, appId } from './firebase';
 import { collection, onSnapshot, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { AppContext } from './context/AppContext';
-import { INITIAL_USERS_DATA, INITIAL_DEPARTMENTS_DATA, GLOBAL_HOLIDAYS, CURRENT_YEAR } from './lib/constants';
+import { INITIAL_USERS_DATA, INITIAL_DEPARTMENTS_DATA, GLOBAL_HOLIDAYS, CURRENT_YEAR, setGlobalHolidays } from './lib/constants';
 import { parseDateLocalObj } from './lib/utils';
 import { Header } from './components/Header';
 import { LoginScreen } from './components/LoginScreen';
@@ -78,7 +78,13 @@ export default function App() {
       (err) => console.error("Vacations snapshot error:", err)
     );
     const unsubHolidays = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'holidays'), 
-      (snap) => { if (snap.exists()) setHolidays(snap.data()); },
+      (snap) => { 
+        if (snap.exists()) {
+          const data = snap.data();
+          setHolidays(data);
+          setGlobalHolidays(data);
+        }
+      },
       (err) => console.error("Holidays snapshot error:", err)
     );
     const unsubAuth = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auth'), 
